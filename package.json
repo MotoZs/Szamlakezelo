@@ -1,0 +1,15 @@
+{
+  "name": "szamlakezelo-backend",
+  "version": "1.0.0",
+  "description": "Számlakezelő alkalmazás backend Node.js + SQLite + Express alapon",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.0.1",
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  }
+}

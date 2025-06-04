@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <title>Számlakezelő</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+      background-color: #f0f0f0;
+    }
+    h1 {
+      text-align: center;
+      color: #004080;
+    }
+    form, table {
+      background: #fff;
+      padding: 1rem;
+      margin-bottom: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    input, select {
+      display: block;
+      width: 100%;
+      padding: 0.5rem;
+      margin: 0.5rem 0;
+    }
+    label {
+      margin-top: 1rem;
+    }
+    button {
+      background: #004080;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border-bottom: 1px solid #ccc;
+      padding: 0.5rem;
+      text-align: left;
+    }
+    th {
+      background-color: #004080;
+      color: white;
+    }
+    legend {
+      font-weight: bold;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Számlakezelő</h1>
+
+  <form id="invoiceForm">
+    <label for="clientId">Vevő:</label>
+    <select id="clientId"></select>
+
+    <legend>Számla kelte</legend>
+    <input type="date" id="date" required>
+
+    <legend>Teljesítés dátuma</legend>
+    <input type="date" id="fulfillmentDate" required>
+
+    <legend>Fizetési határidő</legend>
+    <input type="date" id="dueDate" required>
+
+    <label for="total">Végösszeg (bruttó):</label>
+    <input type="number" id="total" required>
+
+    <label for="vat">ÁFA %:</label>
+    <input type="number" id="vat" required>
+
+    <label for="paymentMethod">Fizetési mód:</label>
+    <select id="paymentMethod">
+      <option value="Átutalás">Átutalás</option>
+      <option value="Készpénz">Készpénz</option>
+      <option value="Bankkártya">Bankkártya</option>
+    </select>
+
+    <button type="submit">Számla mentése</button>
+  </form>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Számlaszám</th>
+        <th>Kiállító</th>
+        <th>Vevő</th>
+        <th>Keltek</th>
+        <th>Teljesítés</th>
+        <th>Határidő</th>
+        <th>Nettó</th>
+        <th>ÁFA</th>
+        <th>Bruttó</th>
+        <th>Fizetés</th>
+        <th>Státusz</th>
+      </tr>
+    </thead>
+    <tbody id="invoiceTableBody"></tbody>
+  </table>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const clientSelect = document.getElementById('clientId');
+      const invoiceForm = document.getElementById('invoiceForm');
+      const invoiceTableBody = document.getElementById('invoiceTableBody');
+
+      async function loadClients() {
+        const res = await fetch('/api/clients');
+        const clients = await res.json();
+        clientSelect.innerHTML = '';
+        clients.forEach(c => {
+          const option = document.createElement('option');
+          option.value = c.id;
+          option.textContent = `${c.name} (${c.taxNumber})`;
+          clientSelect.appendChild(option);
+        });
+      }
+
+      async function loadInvoices() {
+        const res = await fetch('/api/invoices');
+        const invoices = await res.json();
+        invoiceTableBody.innerHTML = '';
+        invoices.forEach(inv => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${inv.number}</td>
+            <td>${inv.issuerName}</td>
+            <td>${inv.clientName}</td>
+            <td>${inv.date}</td>
+            <td>${inv.fulfillmentDate}</td>
+            <td>${inv.dueDate}</td>
+            <td>${(inv.total / (1 + inv.vat / 100)).toFixed(2)}</td>
+            <td>${inv.vat}%</td>
+            <td>${inv.total.toFixed(2)}</td>
+            <td>${inv.paymentMethod}</td>
+            <td>${inv.canceled ? 'Stornózva' : 'Aktív'}</td>
+          `;
+          invoiceTableBody.appendChild(row);
+        });
+      }
+
+      invoiceForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {
+          clientId: document.getElementById('clientId').value,
+          date: document.getElementById('date').value,
+          fulfillmentDate: document.getElementById('fulfillmentDate').value,
+          dueDate: document.getElementById('dueDate').value,
+          total: parseFloat(document.getElementById('total').value),
+          vat: parseInt(document.getElementById('vat').value),
+          paymentMethod: document.getElementById('paymentMethod').value
+        };
+
+        const res = await fetch('/api/invoices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          alert('Számla sikeresen mentve');
+          invoiceForm.reset();
+          loadInvoices();
+        } else {
+          const err = await res.json();
+          alert('Hiba: ' + err.message);
+        }
+      });
+
+      await loadClients();
+      await loadInvoices();
+    });
+  </script>
+</body>
+</html>
